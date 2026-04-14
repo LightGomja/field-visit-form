@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Field Ministry Tracker</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title" data-t="appTitle">Field Ministry Tracker</div>
+    <div class="header-subtitle" data-t="appSubtitle">Church Visit & Partnership</div>
+  </div>
+  <button class="lang-btn" onclick="toggleLang()">
+    <span id="langLabel">NE</span>
+  </button>
+</div>
+
+<div class="status-banner" id="statusBanner">
+  <div class="dot"></div>
+  <span id="statusText"></span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="tab1" onclick="switchTab(1)" data-t="fieldVisitTab">Field Visit</div>
+  <div class="tab" id="tab2" onclick="switchTab(2)" data-t="partnershipTab">Partnership</div>
+</div>
+
+<!-- ===== FIELD VISIT FORM ===== -->
+<div class="form-container">
+  <div class="form-page active" id="page1">
+
+    <!-- Success Card -->
+    <div class="success-card" id="fv-success">
+      <div class="success-icon">✅</div>
+      <div class="success-title" data-t="savedSuccess">Saved Successfully!</div>
+      <div class="success-msg" id="fv-success-msg"></div>
+      <div class="success-actions">
+        <button class="action-btn primary" onclick="resetFieldVisit()" data-t="newVisit">New Visit</button>
+        <button class="action-btn secondary" onclick="switchTab(2)" data-t="goPartnership">Partnership Form</button>
+      </div>
+    </div>
+
+    <div id="fv-form">
+      <!-- Section 1: Visit Info -->
+      <div class="section">
+        <div class="section-header blue">📋 <span data-t="visitInfo">Visit Information</span></div>
+        <div class="section-body">
+          <div class="field">
+            <label data-t="fieldExecLabel">Field Executive Name <span class="req">*</span></label>
+            <div class="search-wrapper">
+              <input type="text" id="fv-exec" data-t-ph="searchExec" placeholder="Search staff name..." oninput="searchExecs('fv-exec','fv-exec-results','fv-exec-id')" autocomplete="off"/>
+              <input type="hidden" id="fv-exec-id"/>
+              <div class="search-results" id="fv-exec-results"></div>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label data-t="dateLabel">Date <span class="req">*</span></label>
+              <input type="date" id="fv-date"/>
+            </div>
+            <div class="field">
+              <label data-t="visitTypeLabel">Visit Type</label>
+              <select id="fv-visittype" onchange="handleVisitTypeChange()">
+                <option value="First Visit" data-t="firstVisit">First Visit</option>
+                <option value="Follow-up" data-t="followUp">Follow-up</option>
+                <option value="Partnership Visit" data-t="partnershipVisit">Partnership Visit</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label data-t="travelPurposeLabel">Travel Purpose</label>
+            <input type="text" id="fv-travelpurpose" data-t-ph="travelPurposePh" placeholder="Reason for visit..."/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Church/Location -->
+      <div class="section">
+        <div class="section-header green">⛪ <span data-t="churchLocation">Church & Location</span></div>
+        <div class="section-body">
+          <div class="field">
+            <label data-t="churchNameLabel">Church Name <span class="req">*</span></label>
+            <div class="search-wrapper">
+              <input type="text" id="fv-church" data-t-ph="searchChurch" placeholder="Search or type church name..." oninput="searchChurches('fv-church','fv-church-results','fv-church-id','fv')" autocomplete="off"/>
+              <input type="hidden" id="fv-church-id"/>
+              <div class="search-results" id="fv-church-results"></div>
+            </div>
+            <div class="visit-badge" id="fv-visit-badge">🔄 <span id="fv-visit-count"></span></div>
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label data-t="districtLabel">District</label>
+              <input type="text" id="fv-district" readonly data-t-ph="autoFilled" placeholder="Auto-filled..."/>
+            </div>
+            <div class="field">
+              <label data-t="vdcLabel">VDC / Municipality</label>
+              <input type="text" id="fv-vdc" readonly data-t-ph="autoFilled" placeholder="Auto-filled..."/>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label data-t="villageLabel">Village / Area</label>
+              <input type="text" id="fv-village" readonly data-t-ph="autoFilled" placeholder="Auto-filled..."/>
+            </div>
+            <div class="field">
+              <label data-t="provinceLabel">Province</label>
+              <input type="text" id="fv-province" readonly data-t-ph="autoFilled" placeholder="Auto-filled..."/>
+            </div>
+          </div>
+          <div class="field">
+            <label data-t="demographicLabel">Demographic</label>
+            <select id="fv-demographic">
+              <option value="Urban Area" data-t="urbanArea">Urban Area</option>
+              <option value="Rural Area" data-t="ruralArea">Rural Area</option>
+              <option value="Semi Rural Area" data-t="semiRuralArea">Semi Rural Area</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Contact -->
+      <div class="section">
+        <div class="section-header purple">👤 <span data-t="contactDetails">Contact Person Details</span></div>
+        <div class="section-body">
+          <div id="fv-contacts-container"></div>
+          <button class="add-group-btn" onclick="addContact()" id="fv-add-contact-btn" data-t="addContact">+ Add Contact</button>
+        </div>
+      </div>
+
+      <!-- Section 4: Visit Results -->
+      <div class="section">
+        <div class="section-header orange">📊 <span data-t="visitResults">Visit Results</span></div>
+        <div class="section-body">
+          <div class="two-col">
+            <div class="field">
+              <label data-t="numPeopleLabel">Number of People Met</label>
+              <input type="number" id="fv-numpeople" min="1" placeholder="0"/>
+            </div>
+            <div class="field">
+              <label data-t="timeSpentLabel">Time Spent</label>
+              <input type="text" id="fv-timespent" data-t-ph="timeSpentPh" placeholder="e.g. 2 hours"/>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label data-t="followupLabel">Follow-up Needed</label>
+              <select id="fv-followup">
+                <option value="No" data-t="no">No</option>
+                <option value="Yes" data-t="yes">Yes</option>
+                <option value="Maybe" data-t="maybe">Maybe</option>
+              </select>
+            </div>
+            <div class="field">
+              <label data-t="nextActionLabel">Next Planned Action</label>
+              <select id="fv-nextaction">
+                <option value="No Action" data-t="noAction">No Action</option>
+                <option value="Return Visit" data-t="returnVisit">Return Visit</option>
+                <option value="Send Materials" data-t="sendMaterials">Send Materials</option>
+                <option value="Prayer Follow-up" data-t="prayerFollowup">Prayer Follow-up</option>
+                <option value="Invite to Event" data-t="inviteEvent">Invite to Event</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label data-t="ministryLabel">Ministries Promoted</label>
+            <input type="text" id="fv-ministry" data-t-ph="ministryPh" placeholder="Which ministries were shared..."/>
+          </div>
+          <div class="field">
+            <label data-t="responseLabel">People Response</label>
+            <select id="fv-response">
+              <option value="Neutral" data-t="neutral">Neutral</option>
+              <option value="Very Interested" data-t="veryInterested">Very Interested</option>
+              <option value="Interested" data-t="interested">Interested</option>
+              <option value="Not Interested" data-t="notInterested">Not Interested</option>
+            </select>
+          </div>
+          <div class="field">
+            <label data-t="testimonyLabel">Short Testimony / Story</label>
+            <textarea id="fv-testimony" data-t-ph="testimonyPh" placeholder="Share a brief testimony from the field..."></textarea>
+          </div>
+          <div class="field">
+            <label data-t="prayerLabel">Prayer Requests</label>
+            <textarea id="fv-prayer" data-t-ph="prayerPh" placeholder="Prayer needs from this visit..."></textarea>
+          </div>
+          <div class="field">
+            <label data-t="commentsLabel">Comments / Remarks</label>
+            <textarea id="fv-comments" data-t-ph="commentsPh" placeholder="Any additional observations..."></textarea>
+          </div>
+          <div class="field">
+            <label data-t="photoLabel">Photo / Audio Upload</label>
+            <input type="file" id="fv-photo" accept="image/*,audio/*"/>
+            <div class="hint" data-t="photoHint">Requires internet connection</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-area" id="fv-submit-area">
+      <button class="submit-btn" onclick="submitFieldVisit()" id="fv-submit-btn">
+        <span data-t="submitVisit">Submit Field Visit</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== CHURCH PARTNERSHIP FORM ===== -->
+  <div class="form-page" id="page2">
+
+    <!-- Success Card -->
+    <div class="success-card" id="cp-success">
+      <div class="success-icon">🤝</div>
+      <div class="success-title" data-t="partnershipSaved">Partnership Saved!</div>
+      <div class="success-msg" id="cp-success-msg"></div>
+      <div class="success-actions">
+        <button class="action-btn primary" onclick="resetPartnership()" data-t="newPartnership">New Partnership</button>
+        <button class="action-btn secondary" onclick="switchTab(1)" data-t="goFieldVisit">Field Visit Form</button>
+      </div>
+    </div>
+
+    <div id="cp-form">
+      <!-- Section 1: Basic Info -->
+      <div class="section">
+        <div class="section-header blue">🤝 <span data-t="partnershipInfo">Partnership Information</span></div>
+        <div class="section-body">
+          <div class="field">
+            <label data-t="fieldExecLabel">Field Executive Name <span class="req">*</span></label>
+            <div class="search-wrapper">
+              <input type="text" id="cp-exec" data-t-ph="searchExec" placeholder="Search staff name..." oninput="searchExecs('cp-exec','cp-exec-results','cp-exec-id')" autocomplete="off"/>
+              <input type="hidden" id="cp-exec-id"/>
+              <div class="search-results" id="cp-exec-results"></div>
+            </div>
+          </div>
+          <div class="field">
+            <label data-t="dateLabel">Date <span class="req">*</span></label>
+            <input type="date" id="cp-date"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Church -->
+      <div class="section">
+        <div class="section-header green">⛪ <span data-t="churchInfo">Church Information</span></div>
+        <div class="section-body">
+          <div class="field">
+            <label data-t="churchNameLabel">Church Name <span class="req">*</span></label>
+            <div class="search-wrapper">
+              <input type="text" id="cp-church" data-t-ph="searchChurch" placeholder="Search or type church name..." oninput="searchChurches('cp-church','cp-church-results','cp-church-id','cp')" autocomplete="off"/>
+              <input type="hidden" id="cp-church-id"/>
+              <div class="search-results" id="cp-church-results"></div>
+            </div>
+            <div class="visit-badge" id="cp-visit-badge">🏘️ <span id="cp-group-count"></span></div>
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label data-t="provinceLabel">Province</label>
+              <input type="text" id="cp-province" data-t-ph="provinceEg" placeholder="e.g. Bagmati"/>
+            </div>
+            <div class="field">
+              <label data-t="districtLabel">District</label>
+              <input type="text" id="cp-district" data-t-ph="districtEg" placeholder="e.g. Kathmandu"/>
+            </div>
+          </div>
+          <div class="field">
+            <label data-t="villageLabel">Village / Place</label>
+            <input type="text" id="cp-village" data-t-ph="villageEg" placeholder="e.g. Balaju"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Groups -->
+      <div class="section">
+        <div class="section-header purple">👥 <span data-t="groupsSection">Groups</span></div>
+        <div class="section-body">
+          <div id="cp-groups-container"></div>
+          <button class="add-group-btn" onclick="addGroup()" data-t="addGroup">+ Add Group</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-area" id="cp-submit-area">
+      <button class="submit-btn" onclick="submitPartnership()" id="cp-submit-btn">
+        <span data-t="submitPartnership">Submit Partnership</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
