@@ -1,293 +1,680 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Field Ministry Tracker</title>
-<link rel="stylesheet" href="style.css">
-<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Field Ministry Tracker</title>
+  <style>
+  :root {
+    --blue: #1a56db;
+    --blue-light: #e8f0fe;
+    --blue-dark: #1240a8;
+    --green: #057a55;
+    --green-light: #def7ec;
+    --red: #c81e1e;
+    --red-light: #fde8e8;
+    --amber: #c27803;
+    --amber-light: #fdf6b2;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-700: #374151;
+    --gray-900: #111827;
+    --white: #ffffff;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-900);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--blue);
+    color: white;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-md);
+  }
+  .header-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-subtitle { font-size: 11px; opacity: 0.8; margin-top: 1px; }
+  .lang-btn {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .lang-btn:hover { background: rgba(255,255,255,0.3); }
+
+  /* STATUS BANNER */
+  .status-banner {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    display: none;
+  }
+  .status-banner.offline { background: var(--red-light); color: var(--red); display: flex; }
+  .status-banner.syncing { background: var(--amber-light); color: var(--amber); display: flex; }
+  .status-banner.synced { background: var(--green-light); color: var(--green); display: flex; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* TABS */
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    position: sticky;
+    top: 56px;
+    z-index: 99;
+  }
+  .tab {
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-500);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+  /* FORMS */
+  .form-container { padding: 16px; max-width: 600px; margin: 0 auto; }
+  .form-page { display: none; }
+  .form-page.active { display: block; }
+
+  /* SECTION */
+  .section {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-header.blue { background: var(--blue-light); color: var(--blue-dark); }
+  .section-header.green { background: var(--green-light); color: var(--green); }
+  .section-header.purple { background: #f0ebff; color: #5521b5; }
+  .section-header.orange { background: #fff3e0; color: #b45309; }
+  .section-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* FIELDS */
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--gray-700); }
+  .field label .req { color: var(--red); margin-left: 2px; }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--gray-900);
+    background: var(--white);
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+  }
+  .field input.error, .field select.error { border-color: var(--red); }
+  .field input[readonly] { background: var(--gray-100); color: var(--gray-500); }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .field .hint { font-size: 11px; color: var(--gray-400); }
+
+  /* SEARCH DROPDOWN */
+  .search-wrapper { position: relative; }
+  .search-results {
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    z-index: 200;
+    max-height: 180px;
+    overflow-y: auto;
+    display: none;
+  }
+  .search-results.open { display: block; }
+  .search-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    border-bottom: 1px solid var(--gray-100);
+    transition: background 0.1s;
+  }
+  .search-item:hover { background: var(--blue-light); }
+  .search-item:last-child { border-bottom: none; }
+  .search-item .sub { font-size: 11px; color: var(--gray-400); margin-top: 1px; }
+  .search-item.new-item { color: var(--blue); font-style: italic; }
+
+  /* VISIT BADGE */
+  .visit-badge {
+    background: var(--blue-light);
+    color: var(--blue-dark);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    display: none;
+    align-items: center;
+    gap: 4px;
+  }
+  .visit-badge.show { display: flex; }
+
+  /* GROUPS */
+  .group-card {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .group-card-header {
+    padding: 8px 12px;
+    background: var(--gray-100);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-700);
+  }
+  .group-card-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--red);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 4px;
+  }
+
+  /* MEMBERS */
+  .member-row {
+    display: grid;
+    grid-template-columns: 1fr 60px 80px 36px;
+    gap: 6px;
+    align-items: end;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .member-row:last-child { border-bottom: none; }
+  .member-label { font-size: 10px; color: var(--gray-500); margin-bottom: 2px; }
+  .member-row input, .member-row select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .leader-toggle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .leader-toggle span { font-size: 9px; color: var(--gray-500); }
+  .leader-toggle input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+  .add-member-btn {
+    background: none;
+    border: 1px dashed var(--blue);
+    color: var(--blue);
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 6px;
+    font-family: inherit;
+  }
+  .add-group-btn {
+    background: none;
+    border: 1px dashed var(--gray-300);
+    color: var(--gray-500);
+    border-radius: var(--radius);
+    padding: 10px;
+    font-size: 13px;
+    cursor: pointer;
+    width: 100%;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .add-group-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+  /* SUBMIT */
+  .submit-area { padding: 16px; max-width: 600px; margin: 0 auto; }
+  .submit-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: inherit;
+    letter-spacing: 0.3px;
+  }
+  .submit-btn:hover { background: var(--blue-dark); }
+  .submit-btn:disabled { background: var(--gray-300); cursor: not-allowed; }
+
+  /* SUCCESS */
+  .success-card {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 32px 24px;
+    text-align: center;
+    display: none;
+  }
+  .success-card.show { display: block; }
+  .success-icon { font-size: 48px; margin-bottom: 12px; }
+  .success-title { font-size: 20px; font-weight: 700; color: var(--green); margin-bottom: 6px; }
+  .success-msg { font-size: 14px; color: var(--gray-500); margin-bottom: 20px; }
+  .success-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .action-btn {
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .action-btn.primary { background: var(--blue); color: white; border: none; }
+  .action-btn.secondary { background: var(--white); color: var(--blue); border: 1px solid var(--blue); }
+
+  /* LOADING */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* TOGGLE */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+  .toggle-label { font-size: 12px; color: var(--gray-700); font-weight: 500; }
+  .toggle-switch {
+    position: relative;
+    width: 40px; height: 22px;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--gray-300);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-slider:before {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    left: 3px; top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-slider { background: var(--blue); }
+  .toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 380px) { .two-col { grid-template-columns: 1fr; } }
+
+  .error-msg { font-size: 11px; color: var(--red); margin-top: 2px; display: none; }
+  .error-msg.show { display: block; }
+</style>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 </head>
+
 <body>
 
-<div class="header">
-  <div>
-    <div class="header-title" data-t="appTitle">Field Ministry Tracker</div>
-    <div class="header-subtitle" data-t="appSubtitle">Church Visit & Partnership</div>
+  <div class="header">
+    <div>
+      <div class="header-title" data-t="appTitle">Field Ministry Tracker</div>
+      <div class="header-subtitle" data-t="appSubtitle">Church Visit & Partnership</div>
+    </div>
+    <button class="lang-btn" onclick="toggleLang()">
+      <span id="langLabel">NE</span>
+    </button>
   </div>
-  <button class="lang-btn" onclick="toggleLang()">
-    <span id="langLabel">NE</span>
-  </button>
-</div>
 
-<div class="status-banner" id="statusBanner">
-  <div class="dot"></div>
-  <span id="statusText"></span>
-</div>
+  <div class="status-banner" id="statusBanner">
+    <div class="dot"></div>
+    <span id="statusText"></span>
+  </div>
 
-<div class="tabs">
-  <div class="tab active" id="tab1" onclick="switchTab(1)" data-t="fieldVisitTab">Field Visit</div>
-  <div class="tab" id="tab2" onclick="switchTab(2)" data-t="partnershipTab">Partnership</div>
-</div>
+  <div class="tabs">
+    <div class="tab active" id="tab1" onclick="switchTab(1)" data-t="fieldVisitTab">Field Visit</div>
+    <div class="tab" id="tab2" onclick="switchTab(2)" data-t="partnershipTab">Partnership</div>
+  </div>
 
-<!-- ===== FIELD VISIT FORM ===== -->
-<div class="form-container">
-  <div class="form-page active" id="page1">
+  <!-- ===== FIELD VISIT FORM ===== -->
+  <div class="form-container">
+    <div class="form-page active" id="page1">
 
-    <!-- Success Card -->
-    <div class="success-card" id="fv-success">
-      <div class="success-icon">✅</div>
-      <div class="success-title" data-t="savedSuccess">Saved Successfully!</div>
-      <div class="success-msg" id="fv-success-msg"></div>
-      <div class="success-actions">
-        <button class="action-btn primary" onclick="resetFieldVisit()" data-t="newVisit">New Visit</button>
-        <button class="action-btn secondary" onclick="switchTab(2)" data-t="goPartnership">Partnership Form</button>
+      <!-- Success Card -->
+      <div class="success-card" id="fv-success">
+        <div class="success-icon">✅</div>
+        <div class="success-title" data-t="savedSuccess">Saved Successfully!</div>
+        <div class="success-msg" id="fv-success-msg"></div>
+        <div class="success-actions">
+          <button class="action-btn primary" onclick="resetFieldVisit()" data-t="newVisit">New Visit</button>
+          <button class="action-btn secondary" onclick="switchTab(2)" data-t="goPartnership">Partnership Form</button>
+        </div>
+      </div>
+
+      <div id="fv-form">
+        <!-- Section 1: Visit Info -->
+        <div class="section">
+          <div class="section-header blue">📋 <span data-t="visitInfo">Visit Information</span></div>
+          <div class="section-body">
+            <div class="field">
+              <label data-t="fieldExecLabel">Field Executive Name <span class="req">*</span></label>
+              <div class="search-wrapper">
+                <input type="text" id="fv-exec" data-t-ph="searchExec" placeholder="Search staff name..."
+                  oninput="searchExecs('fv-exec','fv-exec-results','fv-exec-id')" autocomplete="off" />
+                <input type="hidden" id="fv-exec-id" />
+                <div class="search-results" id="fv-exec-results"></div>
+              </div>
+            </div>
+            <div class="two-col">
+              <div class="field">
+                <label data-t="dateLabel">Date <span class="req">*</span></label>
+                <input type="date" id="fv-date" />
+              </div>
+              <div class="field">
+                <label data-t="visitTypeLabel">Visit Type</label>
+                <select id="fv-visittype" onchange="handleVisitTypeChange()">
+                  <option value="First Visit" data-t="firstVisit">First Visit</option>
+                  <option value="Follow-up" data-t="followUp">Follow-up</option>
+                  <option value="Partnership Visit" data-t="partnershipVisit">Partnership Visit</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label data-t="travelPurposeLabel">Travel Purpose</label>
+              <input type="text" id="fv-travelpurpose" data-t-ph="travelPurposePh" placeholder="Reason for visit..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Church/Location -->
+        <div class="section">
+          <div class="section-header green">⛪ <span data-t="churchLocation">Church & Location</span></div>
+          <div class="section-body">
+            <div class="field">
+              <label data-t="churchNameLabel">Church Name <span class="req">*</span></label>
+              <div class="search-wrapper">
+                <input type="text" id="fv-church" data-t-ph="searchChurch" placeholder="Search or type church name..."
+                  oninput="searchChurches('fv-church','fv-church-results','fv-church-id','fv')" autocomplete="off" />
+                <input type="hidden" id="fv-church-id" />
+                <div class="search-results" id="fv-church-results"></div>
+              </div>
+              <div class="visit-badge" id="fv-visit-badge">🔄 <span id="fv-visit-count"></span></div>
+            </div>
+            <div class="two-col">
+              <div class="field">
+                <label data-t="districtLabel">District</label>
+                <input type="text" id="fv-district" readonly data-t-ph="autoFilled" placeholder="Auto-filled..." />
+              </div>
+              <div class="field">
+                <label data-t="vdcLabel">VDC / Municipality</label>
+                <input type="text" id="fv-vdc" readonly data-t-ph="autoFilled" placeholder="Auto-filled..." />
+              </div>
+            </div>
+            <div class="two-col">
+              <div class="field">
+                <label data-t="villageLabel">Village / Area</label>
+                <input type="text" id="fv-village" readonly data-t-ph="autoFilled" placeholder="Auto-filled..." />
+              </div>
+              <div class="field">
+                <label data-t="provinceLabel">Province</label>
+                <input type="text" id="fv-province" readonly data-t-ph="autoFilled" placeholder="Auto-filled..." />
+              </div>
+            </div>
+            <div class="field">
+              <label data-t="demographicLabel">Demographic</label>
+              <select id="fv-demographic">
+                <option value="Urban Area" data-t="urbanArea">Urban Area</option>
+                <option value="Rural Area" data-t="ruralArea">Rural Area</option>
+                <option value="Semi Rural Area" data-t="semiRuralArea">Semi Rural Area</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Contact -->
+        <div class="section">
+          <div class="section-header purple">👤 <span data-t="contactDetails">Contact Person Details</span></div>
+          <div class="section-body">
+            <div id="fv-contacts-container"></div>
+            <button class="add-group-btn" onclick="addContact()" id="fv-add-contact-btn" data-t="addContact">+ Add
+              Contact</button>
+          </div>
+        </div>
+
+        <!-- Section 4: Visit Results -->
+        <div class="section">
+          <div class="section-header orange">📊 <span data-t="visitResults">Visit Results</span></div>
+          <div class="section-body">
+            <div class="two-col">
+              <div class="field">
+                <label data-t="numPeopleLabel">Number of People Met</label>
+                <input type="number" id="fv-numpeople" min="1" placeholder="0" />
+              </div>
+              <div class="field">
+                <label data-t="timeSpentLabel">Time Spent</label>
+                <input type="text" id="fv-timespent" data-t-ph="timeSpentPh" placeholder="e.g. 2 hours" />
+              </div>
+            </div>
+            <div class="two-col">
+              <div class="field">
+                <label data-t="followupLabel">Follow-up Needed</label>
+                <select id="fv-followup">
+                  <option value="No" data-t="no">No</option>
+                  <option value="Yes" data-t="yes">Yes</option>
+                  <option value="Maybe" data-t="maybe">Maybe</option>
+                </select>
+              </div>
+              <div class="field">
+                <label data-t="nextActionLabel">Next Planned Action</label>
+                <select id="fv-nextaction">
+                  <option value="No Action" data-t="noAction">No Action</option>
+                  <option value="Return Visit" data-t="returnVisit">Return Visit</option>
+                  <option value="Send Materials" data-t="sendMaterials">Send Materials</option>
+                  <option value="Prayer Follow-up" data-t="prayerFollowup">Prayer Follow-up</option>
+                  <option value="Invite to Event" data-t="inviteEvent">Invite to Event</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label data-t="ministryLabel">Ministries Promoted</label>
+              <input type="text" id="fv-ministry" data-t-ph="ministryPh"
+                placeholder="Which ministries were shared..." />
+            </div>
+            <div class="field">
+              <label data-t="responseLabel">People Response</label>
+              <select id="fv-response">
+                <option value="Neutral" data-t="neutral">Neutral</option>
+                <option value="Very Interested" data-t="veryInterested">Very Interested</option>
+                <option value="Interested" data-t="interested">Interested</option>
+                <option value="Not Interested" data-t="notInterested">Not Interested</option>
+              </select>
+            </div>
+            <div class="field">
+              <label data-t="testimonyLabel">Short Testimony / Story</label>
+              <textarea id="fv-testimony" data-t-ph="testimonyPh"
+                placeholder="Share a brief testimony from the field..."></textarea>
+            </div>
+            <div class="field">
+              <label data-t="prayerLabel">Prayer Requests</label>
+              <textarea id="fv-prayer" data-t-ph="prayerPh" placeholder="Prayer needs from this visit..."></textarea>
+            </div>
+            <div class="field">
+              <label data-t="commentsLabel">Comments / Remarks</label>
+              <textarea id="fv-comments" data-t-ph="commentsPh" placeholder="Any additional observations..."></textarea>
+            </div>
+            <div class="field">
+              <label data-t="photoLabel">Photo / Audio Upload</label>
+              <input type="file" id="fv-photo" accept="image/*,audio/*" />
+              <div class="hint" data-t="photoHint">Requires internet connection</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="submit-area" id="fv-submit-area">
+        <button class="submit-btn" onclick="submitFieldVisit()" id="fv-submit-btn">
+          <span data-t="submitVisit">Submit Field Visit</span>
+        </button>
       </div>
     </div>
 
-    <div id="fv-form">
-      <!-- Section 1: Visit Info -->
-      <div class="section">
-        <div class="section-header blue">📋 <span data-t="visitInfo">Visit Information</span></div>
-        <div class="section-body">
-          <div class="field">
-            <label data-t="fieldExecLabel">Field Executive Name <span class="req">*</span></label>
-            <div class="search-wrapper">
-              <input type="text" id="fv-exec" data-t-ph="searchExec" placeholder="Search staff name..." oninput="searchExecs('fv-exec','fv-exec-results','fv-exec-id')" autocomplete="off"/>
-              <input type="hidden" id="fv-exec-id"/>
-              <div class="search-results" id="fv-exec-results"></div>
+    <!-- ===== CHURCH PARTNERSHIP FORM ===== -->
+    <div class="form-page" id="page2">
+
+      <!-- Success Card -->
+      <div class="success-card" id="cp-success">
+        <div class="success-icon">🤝</div>
+        <div class="success-title" data-t="partnershipSaved">Partnership Saved!</div>
+        <div class="success-msg" id="cp-success-msg"></div>
+        <div class="success-actions">
+          <button class="action-btn primary" onclick="resetPartnership()" data-t="newPartnership">New
+            Partnership</button>
+          <button class="action-btn secondary" onclick="switchTab(1)" data-t="goFieldVisit">Field Visit Form</button>
+        </div>
+      </div>
+
+      <div id="cp-form">
+        <!-- Section 1: Basic Info -->
+        <div class="section">
+          <div class="section-header blue">🤝 <span data-t="partnershipInfo">Partnership Information</span></div>
+          <div class="section-body">
+            <div class="field">
+              <label data-t="fieldExecLabel">Field Executive Name <span class="req">*</span></label>
+              <div class="search-wrapper">
+                <input type="text" id="cp-exec" data-t-ph="searchExec" placeholder="Search staff name..."
+                  oninput="searchExecs('cp-exec','cp-exec-results','cp-exec-id')" autocomplete="off" />
+                <input type="hidden" id="cp-exec-id" />
+                <div class="search-results" id="cp-exec-results"></div>
+              </div>
             </div>
-          </div>
-          <div class="two-col">
             <div class="field">
               <label data-t="dateLabel">Date <span class="req">*</span></label>
-              <input type="date" id="fv-date"/>
-            </div>
-            <div class="field">
-              <label data-t="visitTypeLabel">Visit Type</label>
-              <select id="fv-visittype" onchange="handleVisitTypeChange()">
-                <option value="First Visit" data-t="firstVisit">First Visit</option>
-                <option value="Follow-up" data-t="followUp">Follow-up</option>
-                <option value="Partnership Visit" data-t="partnershipVisit">Partnership Visit</option>
-              </select>
+              <input type="date" id="cp-date" />
             </div>
           </div>
-          <div class="field">
-            <label data-t="travelPurposeLabel">Travel Purpose</label>
-            <input type="text" id="fv-travelpurpose" data-t-ph="travelPurposePh" placeholder="Reason for visit..."/>
+        </div>
+
+        <!-- Section 2: Church -->
+        <div class="section">
+          <div class="section-header green">⛪ <span data-t="churchInfo">Church Information</span></div>
+          <div class="section-body">
+            <div class="field">
+              <label data-t="churchNameLabel">Church Name <span class="req">*</span></label>
+              <div class="search-wrapper">
+                <input type="text" id="cp-church" data-t-ph="searchChurch" placeholder="Search or type church name..."
+                  oninput="searchChurches('cp-church','cp-church-results','cp-church-id','cp')" autocomplete="off" />
+                <input type="hidden" id="cp-church-id" />
+                <div class="search-results" id="cp-church-results"></div>
+              </div>
+              <div class="visit-badge" id="cp-visit-badge">🏘️ <span id="cp-group-count"></span></div>
+            </div>
+            <div class="two-col">
+              <div class="field">
+                <label data-t="provinceLabel">Province</label>
+                <input type="text" id="cp-province" data-t-ph="provinceEg" placeholder="e.g. Bagmati" />
+              </div>
+              <div class="field">
+                <label data-t="districtLabel">District</label>
+                <input type="text" id="cp-district" data-t-ph="districtEg" placeholder="e.g. Kathmandu" />
+              </div>
+            </div>
+            <div class="field">
+              <label data-t="villageLabel">Village / Place</label>
+              <input type="text" id="cp-village" data-t-ph="villageEg" placeholder="e.g. Balaju" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Groups -->
+        <div class="section">
+          <div class="section-header purple">👥 <span data-t="groupsSection">Groups</span></div>
+          <div class="section-body">
+            <div id="cp-groups-container"></div>
+            <button class="add-group-btn" onclick="addGroup()" data-t="addGroup">+ Add Group</button>
           </div>
         </div>
       </div>
 
-      <!-- Section 2: Church/Location -->
-      <div class="section">
-        <div class="section-header green">⛪ <span data-t="churchLocation">Church & Location</span></div>
-        <div class="section-body">
-          <div class="field">
-            <label data-t="churchNameLabel">Church Name <span class="req">*</span></label>
-            <div class="search-wrapper">
-              <input type="text" id="fv-church" data-t-ph="searchChurch" placeholder="Search or type church name..." oninput="searchChurches('fv-church','fv-church-results','fv-church-id','fv')" autocomplete="off"/>
-              <input type="hidden" id="fv-church-id"/>
-              <div class="search-results" id="fv-church-results"></div>
-            </div>
-            <div class="visit-badge" id="fv-visit-badge">🔄 <span id="fv-visit-count"></span></div>
-          </div>
-          <div class="two-col">
-            <div class="field">
-              <label data-t="districtLabel">District</label>
-              <input type="text" id="fv-district" readonly data-t-ph="autoFilled" placeholder="Auto-filled..."/>
-            </div>
-            <div class="field">
-              <label data-t="vdcLabel">VDC / Municipality</label>
-              <input type="text" id="fv-vdc" readonly data-t-ph="autoFilled" placeholder="Auto-filled..."/>
-            </div>
-          </div>
-          <div class="two-col">
-            <div class="field">
-              <label data-t="villageLabel">Village / Area</label>
-              <input type="text" id="fv-village" readonly data-t-ph="autoFilled" placeholder="Auto-filled..."/>
-            </div>
-            <div class="field">
-              <label data-t="provinceLabel">Province</label>
-              <input type="text" id="fv-province" readonly data-t-ph="autoFilled" placeholder="Auto-filled..."/>
-            </div>
-          </div>
-          <div class="field">
-            <label data-t="demographicLabel">Demographic</label>
-            <select id="fv-demographic">
-              <option value="Urban Area" data-t="urbanArea">Urban Area</option>
-              <option value="Rural Area" data-t="ruralArea">Rural Area</option>
-              <option value="Semi Rural Area" data-t="semiRuralArea">Semi Rural Area</option>
-            </select>
-          </div>
-        </div>
+      <div class="submit-area" id="cp-submit-area">
+        <button class="submit-btn" onclick="submitPartnership()" id="cp-submit-btn">
+          <span data-t="submitPartnership">Submit Partnership</span>
+        </button>
       </div>
-
-      <!-- Section 3: Contact -->
-      <div class="section">
-        <div class="section-header purple">👤 <span data-t="contactDetails">Contact Person Details</span></div>
-        <div class="section-body">
-          <div id="fv-contacts-container"></div>
-          <button class="add-group-btn" onclick="addContact()" id="fv-add-contact-btn" data-t="addContact">+ Add Contact</button>
-        </div>
-      </div>
-
-      <!-- Section 4: Visit Results -->
-      <div class="section">
-        <div class="section-header orange">📊 <span data-t="visitResults">Visit Results</span></div>
-        <div class="section-body">
-          <div class="two-col">
-            <div class="field">
-              <label data-t="numPeopleLabel">Number of People Met</label>
-              <input type="number" id="fv-numpeople" min="1" placeholder="0"/>
-            </div>
-            <div class="field">
-              <label data-t="timeSpentLabel">Time Spent</label>
-              <input type="text" id="fv-timespent" data-t-ph="timeSpentPh" placeholder="e.g. 2 hours"/>
-            </div>
-          </div>
-          <div class="two-col">
-            <div class="field">
-              <label data-t="followupLabel">Follow-up Needed</label>
-              <select id="fv-followup">
-                <option value="No" data-t="no">No</option>
-                <option value="Yes" data-t="yes">Yes</option>
-                <option value="Maybe" data-t="maybe">Maybe</option>
-              </select>
-            </div>
-            <div class="field">
-              <label data-t="nextActionLabel">Next Planned Action</label>
-              <select id="fv-nextaction">
-                <option value="No Action" data-t="noAction">No Action</option>
-                <option value="Return Visit" data-t="returnVisit">Return Visit</option>
-                <option value="Send Materials" data-t="sendMaterials">Send Materials</option>
-                <option value="Prayer Follow-up" data-t="prayerFollowup">Prayer Follow-up</option>
-                <option value="Invite to Event" data-t="inviteEvent">Invite to Event</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <label data-t="ministryLabel">Ministries Promoted</label>
-            <input type="text" id="fv-ministry" data-t-ph="ministryPh" placeholder="Which ministries were shared..."/>
-          </div>
-          <div class="field">
-            <label data-t="responseLabel">People Response</label>
-            <select id="fv-response">
-              <option value="Neutral" data-t="neutral">Neutral</option>
-              <option value="Very Interested" data-t="veryInterested">Very Interested</option>
-              <option value="Interested" data-t="interested">Interested</option>
-              <option value="Not Interested" data-t="notInterested">Not Interested</option>
-            </select>
-          </div>
-          <div class="field">
-            <label data-t="testimonyLabel">Short Testimony / Story</label>
-            <textarea id="fv-testimony" data-t-ph="testimonyPh" placeholder="Share a brief testimony from the field..."></textarea>
-          </div>
-          <div class="field">
-            <label data-t="prayerLabel">Prayer Requests</label>
-            <textarea id="fv-prayer" data-t-ph="prayerPh" placeholder="Prayer needs from this visit..."></textarea>
-          </div>
-          <div class="field">
-            <label data-t="commentsLabel">Comments / Remarks</label>
-            <textarea id="fv-comments" data-t-ph="commentsPh" placeholder="Any additional observations..."></textarea>
-          </div>
-          <div class="field">
-            <label data-t="photoLabel">Photo / Audio Upload</label>
-            <input type="file" id="fv-photo" accept="image/*,audio/*"/>
-            <div class="hint" data-t="photoHint">Requires internet connection</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="submit-area" id="fv-submit-area">
-      <button class="submit-btn" onclick="submitFieldVisit()" id="fv-submit-btn">
-        <span data-t="submitVisit">Submit Field Visit</span>
-      </button>
     </div>
   </div>
 
-  <!-- ===== CHURCH PARTNERSHIP FORM ===== -->
-  <div class="form-page" id="page2">
-
-    <!-- Success Card -->
-    <div class="success-card" id="cp-success">
-      <div class="success-icon">🤝</div>
-      <div class="success-title" data-t="partnershipSaved">Partnership Saved!</div>
-      <div class="success-msg" id="cp-success-msg"></div>
-      <div class="success-actions">
-        <button class="action-btn primary" onclick="resetPartnership()" data-t="newPartnership">New Partnership</button>
-        <button class="action-btn secondary" onclick="switchTab(1)" data-t="goFieldVisit">Field Visit Form</button>
-      </div>
-    </div>
-
-    <div id="cp-form">
-      <!-- Section 1: Basic Info -->
-      <div class="section">
-        <div class="section-header blue">🤝 <span data-t="partnershipInfo">Partnership Information</span></div>
-        <div class="section-body">
-          <div class="field">
-            <label data-t="fieldExecLabel">Field Executive Name <span class="req">*</span></label>
-            <div class="search-wrapper">
-              <input type="text" id="cp-exec" data-t-ph="searchExec" placeholder="Search staff name..." oninput="searchExecs('cp-exec','cp-exec-results','cp-exec-id')" autocomplete="off"/>
-              <input type="hidden" id="cp-exec-id"/>
-              <div class="search-results" id="cp-exec-results"></div>
-            </div>
-          </div>
-          <div class="field">
-            <label data-t="dateLabel">Date <span class="req">*</span></label>
-            <input type="date" id="cp-date"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section 2: Church -->
-      <div class="section">
-        <div class="section-header green">⛪ <span data-t="churchInfo">Church Information</span></div>
-        <div class="section-body">
-          <div class="field">
-            <label data-t="churchNameLabel">Church Name <span class="req">*</span></label>
-            <div class="search-wrapper">
-              <input type="text" id="cp-church" data-t-ph="searchChurch" placeholder="Search or type church name..." oninput="searchChurches('cp-church','cp-church-results','cp-church-id','cp')" autocomplete="off"/>
-              <input type="hidden" id="cp-church-id"/>
-              <div class="search-results" id="cp-church-results"></div>
-            </div>
-            <div class="visit-badge" id="cp-visit-badge">🏘️ <span id="cp-group-count"></span></div>
-          </div>
-          <div class="two-col">
-            <div class="field">
-              <label data-t="provinceLabel">Province</label>
-              <input type="text" id="cp-province" data-t-ph="provinceEg" placeholder="e.g. Bagmati"/>
-            </div>
-            <div class="field">
-              <label data-t="districtLabel">District</label>
-              <input type="text" id="cp-district" data-t-ph="districtEg" placeholder="e.g. Kathmandu"/>
-            </div>
-          </div>
-          <div class="field">
-            <label data-t="villageLabel">Village / Place</label>
-            <input type="text" id="cp-village" data-t-ph="villageEg" placeholder="e.g. Balaju"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section 3: Groups -->
-      <div class="section">
-        <div class="section-header purple">👥 <span data-t="groupsSection">Groups</span></div>
-        <div class="section-body">
-          <div id="cp-groups-container"></div>
-          <button class="add-group-btn" onclick="addGroup()" data-t="addGroup">+ Add Group</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="submit-area" id="cp-submit-area">
-      <button class="submit-btn" onclick="submitPartnership()" id="cp-submit-btn">
-        <span data-t="submitPartnership">Submit Partnership</span>
-      </button>
-    </div>
-  </div>
-</div>
-
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
+
 </html>
