@@ -1,11 +1,10 @@
 // =============================================
 // Initialize Grist widget
+// =============================================
 grist.ready({ requiredAccess: 'full' });
 
 async function fetchAll(table) {
   const records = await grist.docApi.fetchTable(table);
-  // fetchTable returns {colName: [val, val, ...], id: [1, 2, ...]}
-  // Convert to array of {id, fields} objects
   const ids = records.id;
   const cols = Object.keys(records).filter(k => k !== 'id');
   return ids.map((id, i) => {
@@ -19,7 +18,7 @@ async function addRecord(table, fields) {
   const result = await grist.docApi.applyUserActions([
     ['AddRecord', table, null, fields]
   ]);
-  return result.retValues[0]; // returns the new row id
+  return result.retValues[0];
 }
 
 // =============================================
@@ -102,9 +101,6 @@ const T = {
     provinceEg: 'e.g. Bagmati',
     districtEg: 'e.g. Kathmandu',
     villageEg: 'e.g. Balaju',
-    offlineMsg: 'No internet — data saved locally',
-    syncingMsg: 'Syncing saved records...',
-    syncedMsg: records => `Synced ${records} record(s) successfully`,
     visitBadge: n => `This is visit #${n} to this church`,
     groupBadge: n => `${n} group(s) already exist for this church`,
     newChurch: 'New church — will be created',
@@ -199,9 +195,6 @@ const T = {
     provinceEg: 'जस्तै बागमती',
     districtEg: 'जस्तै काठमाडौं',
     villageEg: 'जस्तै बालाजु',
-    offlineMsg: 'इन्टरनेट छैन — डेटा स्थानीय रूपमा सुरक्षित',
-    syncingMsg: 'सुरक्षित रेकर्डहरू सिङ्क हुँदैछ...',
-    syncedMsg: records => `${records} रेकर्ड सफलतापूर्वक सिङ्क भयो`,
     visitBadge: n => `यो यस चर्चमा ${n} औं भ्रमण हो`,
     groupBadge: n => `यस चर्चमा पहिले नै ${n} समूह छ`,
     newChurch: 'नयाँ चर्च — सिर्जना गरिनेछ',
@@ -260,7 +253,7 @@ function applyTranslations() {
 async function findOrCreate(table, fields, matchFn) {
   const all = await fetchAll(table);
   const found = all.find(r => matchFn(r.fields));
-  if (found) return { id: found.id, existing: true, name: found.fields.name || found.fields.churchname || found.fields.fullname };
+  if (found) return { id: found.id, existing: true, name: found.fields.Staff_Name || found.fields.Church_Name || found.fields.Full_Name };
   const id = await addRecord(table, fields);
   return { id, existing: false };
 }
@@ -269,13 +262,9 @@ async function findOrCreate(table, fields, matchFn) {
 // CACHE LOADING
 // =============================================
 async function loadCaches() {
-  try {
-    execCache = await fetchAll('FieldExecutives');
-    churchCache = await fetchAll('Churches');
-    contactCache = await fetchAll('Contacts');
-  } catch (e) {
-    console.log('Offline — using empty cache');
-  }
+  execCache = await fetchAll('Field Executive staff');
+  churchCache = await fetchAll('Churches');
+  contactCache = await fetchAll('Contacts');
 }
 
 // =============================================
@@ -286,12 +275,12 @@ function searchExecs(inputId, resultsId, hiddenId) {
   const results = document.getElementById(resultsId);
   document.getElementById(hiddenId).value = '';
   if (q.length < 1) { results.classList.remove('open'); return; }
-  const matches = execCache.filter(r => r.fields.name && r.fields.name.toLowerCase().includes(q));
+  const matches = execCache.filter(r => r.fields.Staff_Name && r.fields.Staff_Name.toLowerCase().includes(q));
   renderResults(results, matches, r => ({
-    main: r.fields.name,
-    sub: r.fields.ministryarea || ''
+    main: r.fields.Staff_Name,
+    sub: r.fields.Ministry_Area || ''
   }), (r) => {
-    document.getElementById(inputId).value = r.fields.name;
+    document.getElementById(inputId).value = r.fields.Staff_Name;
     document.getElementById(hiddenId).value = r.id;
     results.classList.remove('open');
   });
@@ -303,13 +292,12 @@ function searchChurches(inputId, resultsId, hiddenId, prefix) {
   document.getElementById(hiddenId).value = '';
   clearChurchAutofill(prefix);
   if (q.length < 1) { results.classList.remove('open'); return; }
-  const matches = churchCache.filter(r => r.fields.churchname && r.fields.churchname.toLowerCase().includes(q));
-  const items = [...matches];
-  renderResults(results, items, r => ({
-    main: r.fields.churchname,
-    sub: [r.fields.district, r.fields.village_area].filter(Boolean).join(', ')
+  const matches = churchCache.filter(r => r.fields.Church_Name && r.fields.Church_Name.toLowerCase().includes(q));
+  renderResults(results, matches, r => ({
+    main: r.fields.Church_Name,
+    sub: r.fields.Address || ''
   }), async (r) => {
-    document.getElementById(inputId).value = r.fields.churchname;
+    document.getElementById(inputId).value = r.fields.Church_Name;
     document.getElementById(hiddenId).value = r.id;
     results.classList.remove('open');
     autofillChurch(r.fields, prefix);
@@ -322,15 +310,15 @@ function searchContacts(inputId, resultsId, hiddenId, phoneId) {
   const results = document.getElementById(resultsId);
   document.getElementById(hiddenId).value = '';
   if (q.length < 1) { results.classList.remove('open'); return; }
-  const matches = contactCache.filter(r => r.fields.fullname && r.fields.fullname.toLowerCase().includes(q));
+  const matches = contactCache.filter(r => r.fields.Full_Name && r.fields.Full_Name.toLowerCase().includes(q));
   renderResults(results, matches, r => ({
-    main: r.fields.fullname,
-    sub: r.fields.phonenumber || ''
+    main: r.fields.Full_Name,
+    sub: r.fields.Phone_number || ''
   }), (r) => {
-    document.getElementById(inputId).value = r.fields.fullname;
+    document.getElementById(inputId).value = r.fields.Full_Name;
     document.getElementById(hiddenId).value = r.id;
     if (phoneId && document.getElementById(phoneId)) {
-      document.getElementById(phoneId).value = r.fields.phonenumber || '';
+      document.getElementById(phoneId).value = r.fields.Phone_number || '';
     }
     results.classList.remove('open');
   });
@@ -356,15 +344,16 @@ function renderResults(container, items, labelFn, onSelect, query = '') {
 }
 
 function autofillChurch(fields, prefix) {
-  const map = {
-    fv: { district: 'fv-district', vdc: 'fv-vdc', village: 'fv-village', province: 'fv-province' },
-    cp: { district: 'cp-district', vdc: null, village: 'cp-village', province: 'cp-province' }
-  };
-  const m = map[prefix];
-  if (m.district) setVal(m.district, fields.district || '');
-  if (m.vdc) setVal(m.vdc, fields.vdc_mn || '');
-  if (m.village) setVal(m.village, fields.village_area || '');
-  if (m.province) setVal(m.province, fields.province || '');
+  if (prefix === 'fv') {
+    setVal('fv-district', fields.Address || '');
+    setVal('fv-vdc', '');
+    setVal('fv-village', '');
+    setVal('fv-province', '');
+  } else {
+    setVal('cp-province', '');
+    setVal('cp-district', fields.Address || '');
+    setVal('cp-village', '');
+  }
 }
 
 function clearChurchAutofill(prefix) {
@@ -372,6 +361,7 @@ function clearChurchAutofill(prefix) {
     ['fv-district', 'fv-vdc', 'fv-village', 'fv-province'].forEach(id => setVal(id, ''));
     document.getElementById('fv-visit-badge').classList.remove('show');
   } else {
+    ['cp-province', 'cp-district', 'cp-village'].forEach(id => setVal(id, ''));
     document.getElementById('cp-visit-badge').classList.remove('show');
   }
 }
@@ -385,7 +375,6 @@ function handleVisitTypeChange() {
   const visitType = document.getElementById('fv-visittype').value;
   const isFirstVisit = visitType === 'First Visit';
   const locationFields = ['fv-district', 'fv-vdc', 'fv-village', 'fv-province'];
-
   locationFields.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -403,14 +392,14 @@ function handleVisitTypeChange() {
 
 async function updateVisitBadge(churchId, prefix) {
   try {
-    const visits = await fetchAll('FieldVisits');
-    const count = visits.filter(r => r.fields.church === churchId).length;
+    const visits = await fetchAll('Field_Visits');
+    const count = visits.filter(r => r.fields.Church === churchId).length;
     if (prefix === 'fv') {
       document.getElementById('fv-visit-count').textContent = t('visitBadge', count + 1);
       document.getElementById('fv-visit-badge').classList.add('show');
     } else {
       const groups = await fetchAll('Groups');
-      const gCount = groups.filter(r => r.fields.church === churchId).length;
+      const gCount = groups.filter(r => r.fields.Church === churchId).length;
       document.getElementById('cp-group-count').textContent = t('groupBadge', gCount);
       document.getElementById('cp-visit-badge').classList.add('show');
     }
@@ -587,53 +576,6 @@ function addMember(gc) {
 }
 
 // =============================================
-// OFFLINE SUPPORT
-// =============================================
-function isOnline() { return navigator.onLine; }
-
-function saveOffline(type, data) {
-  const queue = JSON.parse(localStorage.getItem('fmtOfflineQueue') || '[]');
-  queue.push({ type, data, timestamp: Date.now() });
-  localStorage.setItem('fmtOfflineQueue', JSON.stringify(queue));
-}
-
-function getOfflineQueue() {
-  return JSON.parse(localStorage.getItem('fmtOfflineQueue') || '[]');
-}
-
-function clearOfflineQueue() {
-  localStorage.setItem('fmtOfflineQueue', '[]');
-}
-
-function showBanner(type, text) {
-  const banner = document.getElementById('statusBanner');
-  banner.className = `status-banner ${type}`;
-  document.getElementById('statusText').textContent = text;
-  if (type === 'synced') setTimeout(() => { banner.className = 'status-banner'; }, 4000);
-}
-
-window.addEventListener('online', async () => {
-  const queue = getOfflineQueue();
-  if (queue.length === 0) return;
-  showBanner('syncing', t('syncingMsg'));
-  await loadCaches();
-  let synced = 0;
-  for (const item of queue) {
-    try {
-      if (item.type === 'fieldvisit') await processFieldVisit(item.data);
-      if (item.type === 'partnership') await processPartnership(item.data);
-      synced++;
-    } catch (e) { console.error('Sync error:', e); }
-  }
-  clearOfflineQueue();
-  showBanner('synced', t('syncedMsg', synced));
-});
-
-window.addEventListener('offline', () => {
-  showBanner('offline', t('offlineMsg'));
-});
-
-// =============================================
 // FIELD VISIT SUBMIT
 // =============================================
 async function submitFieldVisit() {
@@ -641,7 +583,6 @@ async function submitFieldVisit() {
   const church = document.getElementById('fv-church').value.trim();
   const date = document.getElementById('fv-date').value;
 
-  // Collect all contact cards
   const contacts = [];
   document.querySelectorAll('[id^="contact-card-"]').forEach(card => {
     const cc = card.id.replace('contact-card-', '');
@@ -692,15 +633,6 @@ async function submitFieldVisit() {
     comments: document.getElementById('fv-comments').value,
   };
 
-  if (!isOnline()) {
-    saveOffline('fieldvisit', formData);
-    showBanner('offline', t('offlineMsg'));
-    showFVSuccess(church, '?');
-    btn.disabled = false;
-    btn.innerHTML = `<span data-t="submitVisit">${t('submitVisit')}</span>`;
-    return;
-  }
-
   try {
     const visitNum = await processFieldVisit(formData);
     showFVSuccess(church, visitNum);
@@ -713,63 +645,58 @@ async function submitFieldVisit() {
 }
 
 async function processFieldVisit(d) {
-  // Find or create field executive
   let execId = d.execId;
   if (!execId) {
-    const r = await findOrCreate('FieldExecutives',
-      { name: d.execName, phonenumber: '', ministryarea: '' },
-      f => f.name === d.execName
+    const r = await findOrCreate('Field Executive staff',
+      { Staff_Name: d.execName, Phine_Number: '', Ministry_Area: '', gmail_id: '' },
+      f => f.Staff_Name === d.execName
     );
     execId = r.id;
   }
 
-  // Find or create church
   let churchId = d.churchId;
   if (!churchId) {
     const r = await findOrCreate('Churches',
-      { churchname: d.churchName, district: d.district, vdc_mn: d.vdc, village_area: d.village, province: d.province, demographic: d.demographic },
-      f => f.churchname === d.churchName && f.district === d.district
+      { Church_Name: d.churchName, Address: `${d.village}, ${d.district}, ${d.province}`.replace(/^,\s*|,\s*$/g, '').trim(), Demographic: d.demographic },
+      f => f.Church_Name === d.churchName
     );
     churchId = r.id;
   }
 
-  // Find or create all contacts; use the first contact as the primary visit contact
   const contacts = d.contacts || [];
   let primaryContactId = null;
   for (const c of contacts) {
     let cId = c.id;
     if (!cId) {
       const r = await findOrCreate('Contacts',
-        { fullname: c.name, phonenumber: c.phone, role: c.role, agegroup: c.age ? c.age.toString() : '', gender: c.gender, church: churchId },
-        f => f.fullname === c.name && f.phonenumber === c.phone
+        { Full_Name: c.name, Phone_number: c.phone, Role: c.role, Age: c.age ? parseInt(c.age) : null, Gender: c.gender, Church: churchId },
+        f => f.Full_Name === c.name && f.Phone_number === c.phone
       );
       cId = r.id;
     }
     if (!primaryContactId) primaryContactId = cId;
   }
 
-  // Count existing visits to this church
-  const visits = await fetchAll('FieldVisits');
-  const visitNum = visits.filter(r => r.fields.church === churchId).length + 1;
+  const visits = await fetchAll('Field_Visits');
+  const visitNum = visits.filter(r => r.fields.Church === churchId).length + 1;
 
-  // Always create new visit
-  await addRecord('FieldVisits', {
-    date: d.date,
-    fieldexecutive: execId,
-    church: churchId,
-    contact: primaryContactId,
-    visittype: d.visittype,
-    travelpurpose: d.travelpurpose,
-    numberofpeople: parseInt(d.numpeople) || 0,
-    timespent: d.timespent,
-    followupneeded: d.followup,
-    nextplannedaction: d.nextaction,
-    ministrypromoted: d.ministry,
-    peopleresponse: d.response,
-    shorttestimony: d.testimony,
-    prayerrequest: d.prayer,
-    comments: d.comments,
-    visitnumber: visitNum
+  await addRecord('Field_Visits', {
+    Date: d.date,
+    Fleld_Staff: execId,
+    Church: churchId,
+    Contact: primaryContactId,
+    visit_type: d.visittype,
+    Travel_purpose: d.travelpurpose,
+    Number_of_people: parseInt(d.numpeople) || 0,
+    Time_spent: d.timespent,
+    Followup_needed: d.followup,
+    Next_planned_action: d.nextaction,
+    Ministry_promoted: d.ministry,
+    People_response: d.response,
+    Short_testimony: d.testimony,
+    Prayer_request: d.prayer,
+    Comments: d.comments,
+    Visit_Number: visitNum
   });
 
   await loadCaches();
@@ -779,8 +706,7 @@ async function processFieldVisit(d) {
 function showFVSuccess(churchName, visitNum) {
   document.getElementById('fv-form').style.display = 'none';
   document.getElementById('fv-submit-area').style.display = 'none';
-  const msg = visitNum === '?' ? t('offlineMsg') : t('visitBadge', visitNum);
-  document.getElementById('fv-success-msg').textContent = `${churchName} — ${msg}`;
+  document.getElementById('fv-success-msg').textContent = `${churchName} — ${t('visitBadge', visitNum)}`;
   document.getElementById('fv-success').classList.add('show');
 }
 
@@ -805,7 +731,6 @@ function resetFieldVisit() {
   document.getElementById('fv-travelpurpose').value = '';
   document.getElementById('fv-visittype').value = 'First Visit';
   document.getElementById('fv-visit-badge').classList.remove('show');
-  // Reset contacts: clear container and add one fresh card
   document.getElementById('fv-contacts-container').innerHTML = '';
   contactCount = 0;
   addContact();
@@ -870,15 +795,6 @@ async function submitPartnership() {
     groups
   };
 
-  if (!isOnline()) {
-    saveOffline('partnership', formData);
-    showBanner('offline', t('offlineMsg'));
-    showCPSuccess(church, groups.length);
-    btn.disabled = false;
-    btn.innerHTML = `<span data-t="submitPartnership">${t('submitPartnership')}</span>`;
-    return;
-  }
-
   try {
     await processPartnership(formData);
     showCPSuccess(church, groups.length);
@@ -893,9 +809,9 @@ async function submitPartnership() {
 async function processPartnership(d) {
   let execId = d.execId;
   if (!execId) {
-    const r = await findOrCreate('FieldExecutives',
-      { name: d.execName, phonenumber: '', ministryarea: '' },
-      f => f.name === d.execName
+    const r = await findOrCreate('Field Executive staff',
+      { Staff_Name: d.execName, Phine_Number: '', Ministry_Area: '', gmail_id: '' },
+      f => f.Staff_Name === d.execName
     );
     execId = r.id;
   }
@@ -903,39 +819,36 @@ async function processPartnership(d) {
   let churchId = d.churchId;
   if (!churchId) {
     const r = await findOrCreate('Churches',
-      { churchname: d.churchName, province: d.province, district: d.district, village_area: d.village, ispartner: true, partnershipstatus: 'Active' },
-      f => f.churchname === d.churchName && f.district === d.district
+      { Church_Name: d.churchName, Address: `${d.village}, ${d.district}, ${d.province}`.replace(/^,\s*|,\s*$/g, '').trim(), is_partnar: true, Partnership_date: d.date, artnership_status: 'Active' },
+      f => f.Church_Name === d.churchName
     );
     churchId = r.id;
   }
 
   for (const g of d.groups) {
-    // Find or create leader contact
     let leaderId = null;
     if (g.leaderName) {
       const lr = await findOrCreate('Contacts',
-        { fullname: g.leaderName, phonenumber: g.leaderPhone || '', role: 'Home Group Leader', church: churchId },
-        f => f.fullname === g.leaderName && f.phonenumber === (g.leaderPhone || '')
+        { Full_Name: g.leaderName, Phone_number: g.leaderPhone || '', Role: 'Home Group Leader', Church: churchId },
+        f => f.Full_Name === g.leaderName && f.Phone_number === (g.leaderPhone || '')
       );
       leaderId = lr.id;
     }
 
-    // Find or create group
     const gr = await findOrCreate('Groups',
-      { church: churchId, grouptype: g.type, groupleader: leaderId, bookname: g.bookname, dayofmeeting: g.day, ministry: g.ministry, isactive: true },
-      f => f.church === churchId && f.grouptype === g.type
+      { Church: churchId, Group_type: g.type, Group_leader: leaderId, Book_name: g.bookname, Day_of_meeting: g.day, Started_date: d.date, IsActive: true },
+      f => f.Church === churchId && f.Group_type === g.type
     );
     const groupId = gr.id;
 
-    // Add members
     for (const m of g.members) {
       const mr = await findOrCreate('Contacts',
-        { fullname: m.name, phonenumber: '', agegroup: m.age ? `Age ${m.age}` : '', gender: m.gender, church: churchId },
-        f => f.fullname === m.name && f.church === churchId
+        { Full_Name: m.name, Phone_number: '', Age: m.age ? parseInt(m.age) : null, Gender: m.gender, Church: churchId },
+        f => f.Full_Name === m.name && f.Church === churchId
       );
-      await findOrCreate('GroupMembers',
-        { group: groupId, member: mr.id, isgroupleader: m.isleader },
-        f => f.group === groupId && f.member === mr.id
+      await findOrCreate('Group_Members',
+        { Group: groupId, Member: mr.id, is_group_leader: m.isleader },
+        f => f.Group === groupId && f.Member === mr.id
       );
     }
   }
@@ -997,9 +910,7 @@ async function init() {
   setToday('cp-date');
   applyTranslations();
   if (lang === 'ne') document.getElementById('langLabel').textContent = 'EN';
-  if (!isOnline()) showBanner('offline', t('offlineMsg'));
   handleVisitTypeChange();
-  // Add the first default contact card
   addContact();
   await loadCaches();
 }
